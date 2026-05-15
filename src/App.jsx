@@ -4,7 +4,6 @@ import "./App.css";
 import abi from "./abi.json";
 
 const contractAddress = "0x15697c05aCCB2768703637770a7a6De4C533ceb0";
-// RPC URL tvog lokalnog Ganache-a
 const ganacheUrl = "http://127.0.0.1:7545"; 
 
 function App() {
