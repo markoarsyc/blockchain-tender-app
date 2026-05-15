@@ -1,45 +1,227 @@
+/* ==========================================================================
+   1. OSNOVNI RESET I KONTEJNER
+   ========================================================================== */
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --dark-btn: #0f172a;
+  --dark-btn-hover: #1e293b;
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-badge: #f0fdf4;
+  --border-badge: #bbf7d0;
+  --text-dark: #1e293b;
+  --text-muted: #64748b;
+  --border-input: #e2e8f0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-dark);
+}
+
 .container {
-  max-width: 500px;
+  max-width: 750px;
   margin: 50px auto;
-  padding: 20px;
-  font-family: Arial, sans-serif;
-  border: 1px solid #ccc;
-  border-radius: 10px;
-  background-color: #f9f9f9;
+  padding: 0 20px;
+}
+
+h1 {
   text-align: center;
+  font-size: 2.4rem;
+  color: #0f172a;
+  margin-bottom: 25px;
 }
 
-h1 { color: #333; }
-
-.account-info {
-  font-size: 12px;
-  color: green;
-  word-break: break-all;
+h2 {
+  font-size: 1.4rem;
+  color: #334155;
+  margin-top: 0;
+  margin-bottom: 25px;
+  border-left: 4px solid var(--primary);
+  padding-left: 10px;
 }
 
-.bid-section {
-  margin-top: 20px;
-  padding: 20px;
-  border-top: 2px solid #eee;
+hr {
+  border: 0;
+  height: 1px;
+  background-color: var(--border-input);
+  margin: 30px 0;
+}
+
+/* ==========================================================================
+   2. NAVIGACIJA (Zajednički stil za meni iz prethodnog koraka)
+   ========================================================================== */
+.navigation-tabs {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 5px;
+}
+
+.navigation-tabs a {
+  padding: 12px 20px;
+  text-decoration: none;
+  font-weight: 600;
+  color: var(--text-muted);
+  background-color: #f1f5f9;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.navigation-tabs a:hover {
+  background-color: #e2e8f0;
+  color: var(--text-dark);
+}
+
+.navigation-tabs a.active {
+  background-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+/* ==========================================================================
+   3. STRUKTURA TABOVA (CreateTender & ActiveTenders)
+   ========================================================================== */
+.tab-content {
+  background-color: var(--bg-card);
+  padding: 35px;
+  border-radius: 14px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.form-row {
+  display: flex;
+  gap: 20px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
 }
 
 input {
-  padding: 10px;
-  width: 80%;
-  margin-bottom: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: #f8fafc;
+  color: var(--text-dark);
+  transition: all 0.2s ease;
 }
 
+input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+input::placeholder {
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+/* ==========================================================================
+   4. DUGMIĆI (Zasebne klase iz tvojih komponenti)
+   ========================================================================== */
 button {
-  padding: 10px 20px;
-  background-color: #007bff;
-  color: white;
+  width: 100%;
+  padding: 14px;
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
+  font-size: 1.05rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-button:hover {
-  background-color: #0056b3;
+/* Dugme za investitore (Plavo) */
+.btn-main {
+  background-color: var(--primary);
+  color: #ffffff;
+}
+
+.btn-main:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+/* Dugme za majstore (Tamno) */
+.btn-submit {
+  background-color: var(--dark-btn);
+  color: #ffffff;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background-color: var(--dark-btn-hover);
+}
+
+button:disabled {
+  background-color: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   5. KARTICE I INFORMACIJE O TENDERU
+   ========================================================================== */
+.address-bar {
+  background-color: #f1f5f9;
+  border: 1px dashed #cbd5e1;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.live-data {
+  background-color: var(--bg-badge);
+  border: 1px solid var(--border-badge);
+  padding: 20px;
+  border-radius: 10px;
+  margin-top: 10px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.live-data h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #166534;
+  font-size: 1.1rem;
+}
+
+.live-data p {
+  margin: 8px 0;
+  font-size: 1rem;
+}
+
+.live-data strong {
+  color: #334155;
+}
+
+.loading-text {
+  text-align: center;
+  color: var(--primary);
+  font-weight: 500;
+  font-style: italic;
+  margin: 15px 0;
+}
+
+/* Jednostavna animacija za pojavljivanje stanja tendera */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
