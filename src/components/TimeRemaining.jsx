@@ -5,7 +5,7 @@ function TimeRemaining({ tenderEndTime, onExpired }) {
 
   useEffect(() => {
     const calculateTimeRemaining = () => {
-      const currentTime = Math.floor(Date.now() / 1000); // Trenutno vrijeme u sekundama
+      const currentTime = Math.floor(Date.now() / 1000); // Trenutno vreme u sekundama
       const secondsLeft = Math.max(0, Number(tenderEndTime) - currentTime);
 
       if (secondsLeft === 0) {

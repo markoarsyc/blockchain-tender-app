@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import contractArtifact from "../contractArtifact.json";
 import TimeRemaining from "./TimeRemaining";
 
+// Lokalni RPC čvor (Ganache) na kojem se nalaze instance pametnih ugovora
 const ganacheUrl = "http://127.0.0.1:7545";
 
 function TendersList({ onSelectTender }) {
@@ -14,12 +15,13 @@ function TendersList({ onSelectTender }) {
     loadTenders();
   }, []);
 
+  // Asinhrono preuzimanje stanja svih registrovanih ugovora sa blockchain mreže
   const loadTenders = async () => {
     setIsLoading(true);
     setError("");
 
     try {
-      // Čitaj sve adrese tendera iz localStorage
+      // Čitanje nizova adresa ugovora koji su sačuvani u perzistentnoj memoriji pretraživača
       const storedAddresses = JSON.parse(
         localStorage.getItem("tender_addresses") || "[]"
       );
@@ -32,7 +34,7 @@ function TendersList({ onSelectTender }) {
 
       const provider = new ethers.JsonRpcProvider(ganacheUrl);
 
-      // Dohvati podatke za sve tendere (aktivne i završene)
+      // Paralelno mapiranje i upit za svaku adresu ugovora radi optimizacije performansi (Promise.all)
       const tendersData = await Promise.all(
         storedAddresses.map(async (address) => {
           try {
@@ -42,6 +44,7 @@ function TendersList({ onSelectTender }) {
               provider
             );
 
+            // Istovremeno čitanje javnih stanja (getters) iz skladišta pametnog ugovora
             const [desc, lowestBid, tenderEndTime, ended, lowestBidder] = await Promise.all([
               contract.jobDescription(),
               contract.lowestBid(),
@@ -60,20 +63,20 @@ function TendersList({ onSelectTender }) {
               isValid: true,
             };
           } catch (err) {
-            console.error(`Greška pri čitanju tendera ${address}:`, err);
+            console.error(`Greška pri čitanju ugovora na adresi ${address}:`, err);
             return {
               address,
               isValid: false,
-              error: "Nije moguće pročitati tender",
+              error: "Nije moguće pročitati podatke sa ugovora",
             };
           }
         })
       );
 
-      // Sortiraj tendere: prvo aktivne, zatim završene
       const currentTime = Math.floor(Date.now() / 1000);
       const validTenders = tendersData.filter((t) => t.isValid);
       
+      // Filtriranje ugovora na osnovu preostalog vremena i stanja varijable 'ended' na blockchain-u
       const activeTenders = validTenders.filter((tender) => {
         const tenderEndTime = Number(tender.tenderEndTime);
         return currentTime <= tenderEndTime && !tender.ended;
@@ -84,7 +87,7 @@ function TendersList({ onSelectTender }) {
         return currentTime > tenderEndTime || tender.ended;
       });
 
-      // Kombinuj sa markama koje su aktivne
+      // Spajanje kategorisanih podataka u jedinstven niz sa flagom aktivnog statusa
       const allTenders = [
         ...activeTenders.map((t) => ({ ...t, isActive: true })),
         ...completedTenders.map((t) => ({ ...t, isActive: false })),
@@ -92,9 +95,9 @@ function TendersList({ onSelectTender }) {
 
       setTenders(allTenders);
     } catch (err) {
-      console.error("Greška pri učitavanju tendera:", err);
+      console.error("Sistemska greška pri komunikaciji sa čvorom:", err);
       setError(
-        "Greška pri učitavanju tendera. Proverite da li je blockchain dostupan."
+        "Greška pri učitavanju tendera. Proverite da li je lokalna blockchain mreža pokrenuta."
       );
     } finally {
       setIsLoading(false);
@@ -102,10 +105,10 @@ function TendersList({ onSelectTender }) {
   };
 
   const handleTenderExpired = () => {
-    // Osvježi listu kada tender istekne
     loadTenders();
   };
 
+  // Pomoćna metoda za konverziju Wei vrednosti u čitljiv ETH format
   const formatWei = (weiValue) => {
     try {
       const ethValue = ethers.formatEther(weiValue);
@@ -116,7 +119,7 @@ function TendersList({ onSelectTender }) {
   };
 
   if (isLoading) {
-    return <div className="tenders-container"><p className="loading-text">Učitavam tendere...</p></div>;
+    return <div className="tenders-container"><p className="loading-text">Učitavam tendere sa blockchain mreže...</p></div>;
   }
 
   if (error) {
@@ -126,7 +129,7 @@ function TendersList({ onSelectTender }) {
   if (tenders.length === 0) {
     return (
       <div className="tenders-container">
-        <p className="info-text">📭 Nema tendera. Kreiraj novi tender na stranici "Kreiraj Tender".</p>
+        <p className="info-text">📭 Trenutno nema registrovanih tendera. Kreirajte novi tender na odgovarajućem panelu.</p>
       </div>
     );
   }
@@ -136,7 +139,7 @@ function TendersList({ onSelectTender }) {
 
   return (
     <div className="tenders-container">
-      {/* AKTIVNI TENDERI */}
+      {/* Prikaz tendera koji su u fazi aktivnog nadmetanja */}
       {activeTenders.length > 0 && (
         <div className="tenders-section">
           <h3>📋 Aktivni Tenderi ({activeTenders.length})</h3>
@@ -175,7 +178,7 @@ function TendersList({ onSelectTender }) {
         </div>
       )}
 
-      {/* ZAVRŠENI TENDERI */}
+      {/* Prikaz istorijskih tendera čiji je rok istekao ili su zatvoreni */}
       {completedTenders.length > 0 && (
         <div className="tenders-section">
           <h3>✅ Završeni Tenderi ({completedTenders.length})</h3>
@@ -188,16 +191,16 @@ function TendersList({ onSelectTender }) {
                 </div>
                 <div className="tender-details">
                   <p>
-                    <strong>Pobjednika ponuda:</strong>{" "}
+                    <strong>Pobednička ponuda:</strong>{" "}
                     {formatWei(tender.lowestBid)}
                   </p>
                   <p>
-                    <strong>Pobjednika adresa:</strong>
+                    <strong>Pobednička adresa:</strong>
                     <br />
                     <code style={{ fontSize: "0.85em", wordBreak: "break-all" }}>
                       {tender.lowestBidder && tender.lowestBidder !== "0x0000000000000000000000000000000000000000"
                         ? tender.lowestBidder
-                        : "Nema ponude"}
+                        : "Nema podnetih ponuda"}
                     </code>
                   </p>
                   <p>
@@ -211,7 +214,7 @@ function TendersList({ onSelectTender }) {
                 <button
                   className="btn-select-tender"
                   onClick={() => onSelectTender(tender)}
-                  title="Pogledaj rezultate tendera"
+                  title="Pogledaj ishode i kontakt podatke"
                 >
                   🔑 Pogledaj Rezultat / Kontakt
                 </button>
