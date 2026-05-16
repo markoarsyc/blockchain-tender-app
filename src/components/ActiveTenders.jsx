@@ -16,6 +16,7 @@ function ActiveTenders({ contractAddress, setContractAddress }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [winnerResult, setWinnerResult] = useState(null);
   const [isLoadingResult, setIsLoadingResult] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   // Stanja za autentifikaciju i autorizaciju investitora (kreatora tendera)
   const [managerPrivateKey, setManagerPrivateKey] = useState("");
@@ -106,10 +107,12 @@ function ActiveTenders({ contractAddress, setContractAddress }) {
       const bidAmountInWei = ethers.parseEther(bidAmount);
       console.log(`Slanje transakcije sa adrese: ${signer.address} | Iznos: ${bidAmount} ETH`);
       
-      const tx = await contract.applyForJob(bidAmountInWei);
+      const tx = await contract.applyForJob(bidAmountInWei, {
+        value: ethers.parseEther("0.05") 
+      });
       await tx.wait(); // Čekanje da transakcija bude upisana u blok
       
-      alert("Ponuda uspešno poslata!");
+      alert("Ponuda uspešno poslata! Garantni depozit od 0.05 ETH je privremeno zaključan u ugovoru.");
       setBidAmount("");
       setSelectedTender(null);
       window.location.reload(); // Osvežavanje stanja aplikacije povlačenjem novih podataka
@@ -140,7 +143,7 @@ function ActiveTenders({ contractAddress, setContractAddress }) {
 
       console.log(`Zahtev za zatvaranje tendera od strane kreatora: ${signer.address}`);
       
-      // Eksplicitno definisan gasLimit kako bi se izbegla CALL_EXCEPTION greška pri simulaciji gasa
+      //amp; Eksplicitno definisan gasLimit kako bi se izbegla CALL_EXCEPTION greška pri simulaciji gasa
       const tx = await myContractInstance.tenderEnd({ gasLimit: 100000 });
       await tx.wait();
 
@@ -207,6 +210,38 @@ function ActiveTenders({ contractAddress, setContractAddress }) {
       });
     } finally {
       setIsLoadingResult(false);
+    }
+  };
+
+  // Povlačenje garantnog depozita sa pametnog ugovora (izvršava izvođač koji je izgubio)
+  const withdrawMyDeposit = async () => {
+    if (!selectedTender) return alert("Tender nije odabran!");
+    if (!bidderPrivateKey) return alert("Unesite privatni ključ vašeg naloga!");
+    if (!derivedAddress) return alert("Privatni ključ nije validan!");
+
+    setIsWithdrawing(true);
+    try {
+      const provider = new ethers.JsonRpcProvider(ganacheUrl);
+      const signer = new ethers.Wallet(bidderPrivateKey, provider);
+      const contract = new ethers.Contract(
+        selectedTender.address,
+        contractArtifact.abi,
+        signer
+      );
+
+      console.log(`Zahtev za povraćaj depozita šalje: ${signer.address}`);
+      
+      const tx = await contract.withdrawDeposit();
+      await tx.wait();
+
+      alert("💸 Vaš depozit od 0.05 ETH je uspešno povučen i vraćen na vaš nalog u Ganache-u!");
+      setSelectedTender(null);
+      window.location.reload();
+    } catch (err) {
+      console.error("Greška pri povlačenju depozita:", err);
+      alert("Nemate sredstava za podizanje ili je transakcija odbijena.");
+    } finally {
+      setIsWithdrawing(false);
     }
   };
 
@@ -336,9 +371,25 @@ function ActiveTenders({ contractAddress, setContractAddress }) {
               </div>
 
               {winnerResult && (
-                <div style={{ marginTop: "20px", padding: "15px", backgroundColor: winnerResult.success ? "#d4edda" : "#f8d7da", border: `1px solid ${winnerResult.success ? "#28a745" : "#f5c6cb"}`, borderRadius: "4px" }}>
-                  <p style={{ margin: "0" }}><strong style={{ color: winnerResult.success ? "#155724" : "#721c24" }}>{winnerResult.message}</strong></p>
-                </div>
+                <>
+                  <div style={{ marginTop: "20px", padding: "15px", backgroundColor: winnerResult.success ? "#d4edda" : "#f8d7da", border: `1px solid ${winnerResult.success ? "#28a745" : "#f5c6cb"}`, borderRadius: "4px" }}>
+                    <p style={{ margin: "0" }}><strong style={{ color: winnerResult.success ? "#155724" : "#721c24" }}>{winnerResult.message}</strong></p>
+                  </div>
+
+                  {/* Dugme za povraćaj depozita se prikazuje ispod poruke isključivo ako majstor nije pobednik i tender je stvarno zatvoren */}
+                  {!winnerResult.success && !winnerResult.message.includes("još uvek nije zvanično zatvorio") && (
+                    <div style={{ marginTop: "12px" }}>
+                      <button
+                        className="btn-submit"
+                        onClick={withdrawMyDeposit}
+                        disabled={isWithdrawing}
+                        style={{ backgroundColor: "#007bff", width: "100%", padding: "10px", fontWeight: "bold" }}
+                      >
+                        {isWithdrawing ? "Povlačenje depozita sa ugovora..." : "💰 Povrati moj depozit (0.05 ETH)"}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
 
               <div style={{ marginTop: "15px" }}>

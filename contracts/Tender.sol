@@ -3,48 +3,40 @@ pragma solidity ^0.8.4;
 
 /**
  * @title BuildingTender
- * @dev Sistem za prikupljanje ponuda za građevinske radove (obrnuta aukcija).
- * Pobeđuje majstor koji ponudi NAJNIŽU cenu.
+ * @dev Decentralizovani sistem za sprovođenje obrnutih aukcija u građevinskom sektoru.
+ * Povezuje investitore i izvođače radova, gde ugovor dodeljuje posao majstoru sa najnižom ponudom.
  */
 contract BuildingTender {
-    // Adresa investitora zgrade koji postavlja tender
+    
     address public manager;
-    
-    // Opis radova (npr. "Postavljanje parketa u hodniku")
     string public jobDescription;
-    
-    // Kontakt telefon ili email koji vidi samo pobednik
     string private secretContact;
-
-    // Vreme završetka tendera
     uint public tenderEndTime;
-
-    // Trenutno najniža ponuda i adresa tog majstora
+    
     uint public lowestBid;
     address public lowestBidder;
 
-    // Mapa za povraćaj depozita majstorima koji nisu prošli
+    // Fiksni sigurnosni depozit koji svaki majstor mora da priloži kao garanciju ozbiljnosti ponude
+    uint public constant DEPOSIT_AMOUNT = 0.05 ether;
+
+    // Struktura podataka za privremeno skladištenje sredstava majstora čije su ponude nadmašene
     mapping(address => uint) pendingReturns;
 
     bool public ended;
 
-    // Događaji koji će javljati React-u šta se dešava
-    event LowestBidDecreased(address bidder, uint amount);
+    // Eevents (Događaji) koje React aplikacija osluškuje u realnom vremenu
+    event LowestBidDecreased(address indexed bidder, uint amount);
     event TenderEnded(address winner, uint amount);
 
-    // Greške
+    // Custom greške u cilju uštede Gas-a (Gas Optimization)
     error TenderAlreadyEnded();
     error BidTooHigh(uint currentLowest);
-    error TenderNotEnded();
+    error TenderNotEndedYet();
     error TenderEndAlreadyCalled();
     error NotManager();
+    error IncorrectDepositValue();
+    error NotTheWinner();
 
-    /**
-     * @param _biddingTime Koliko sekundi traje tender
-     * @param _description Šta treba da se radi
-     * @param _secret Kontakt podaci investitora
-     * @param _initialPrice Početna maksimalna cena koju investitor želi da plati
-     */
     constructor(
         uint _biddingTime,
         string memory _description,
@@ -55,31 +47,37 @@ contract BuildingTender {
         jobDescription = _description;
         secretContact = _secret;
         tenderEndTime = block.timestamp + _biddingTime;
-        lowestBid = _initialPrice; // Postavljamo plafon cene
+        lowestBid = _initialPrice; 
     }
 
     /**
-     * Majstori zovu ovu funkciju da pošalju ponudu.
-     * @param proposedPrice Cena za koju bi radili posao (u Wei ili Eurima, zavisi od dogovora)
+     * @dev Funkcija preko koje izvođači (majstori) šalju svoje ponude.
+     * Zahteva slanje tačnog iznosa garantnog depozita (DEPOSIT_AMOUNT).
+     * @param proposedPrice Finansijska ponuda izvođača za izvršenje posla (izražena u Wei)
      */
     function applyForJob(uint proposedPrice) external payable {
-        // 1. Provera da li je tender još uvek otvoren
+        // 1. Validacija vremenskog okvira i trenutnog stanja aukcije
         if (block.timestamp > tenderEndTime || ended) {
             revert TenderAlreadyEnded();
         }
 
-        // 2. Provera da li je ponuda niža od trenutno najniže
+        // 2. Provera da li je poslata vrednost depozita ispravna
+        if (msg.value != DEPOSIT_AMOUNT) {
+            revert IncorrectDepositValue();
+        }
+
+        // 3. Validacija ekonomske isplativosti ponude (mora biti strogo niža od trenutne)
         if (proposedPrice >= lowestBid) {
             revert BidTooHigh(lowestBid);
         }
 
-        // 3. (Opciono) Sigurnosni depozit: Majstor mora da pošalje malo ETH-a kao garanciju
-        // Ako je neko ranije bio najniži, vraćamo mu njegov depozit u "kasu" za podizanje
+        // 4. Refundacija prethodnog vodećeg ponuđača
+        // Ako već postoji majstor koji je vodio, njegov depozit se oslobađa i prebacuje u pendingReturns
         if (lowestBidder != address(0)) {
-            pendingReturns[lowestBidder] += msg.value;
+            pendingReturns[lowestBidder] += DEPOSIT_AMOUNT;
         }
 
-        // Ažuriramo ko vodi
+        // Ažuriranje stanja na blockchain-u (State variables update)
         lowestBidder = msg.sender;
         lowestBid = proposedPrice;
 
@@ -87,11 +85,13 @@ contract BuildingTender {
     }
 
     /**
-     * Funkcija za podizanje depozita (za one koji nisu pobedili)
+     * @dev Pull-payment obrazac (pattern) koji omogućava majstorima koji nisu pobedili
+     * da bezbedno povuku svoj garantni depozit, sprečavajući Reentrancy napade.
      */
     function withdrawDeposit() external returns (bool) {
         uint amount = pendingReturns[msg.sender];
         if (amount > 0) {
+            // "Checks-Effects-Interactions" pattern: prvo resetujemo stanje, pa šaljemo novac
             pendingReturns[msg.sender] = 0;
 
             (bool success, ) = payable(msg.sender).call{value: amount}("");
@@ -104,10 +104,12 @@ contract BuildingTender {
     }
 
     /**
-     * Završetak tendera (može da pozove bilo ko nakon isteka vremena)
+     * @dev Funkcija za formalno zatvaranje tendera. 
+     * Može je pozvati isključivo investitor nakon što istekne predviđeno vreme.
      */
     function tenderEnd() external {
-        if (msg.sender != manager) revert NotManager(); // <-- Restrikcija: samo vlasnik
+        if (msg.sender != manager) revert NotManager();
+        if (block.timestamp < tenderEndTime) revert TenderNotEndedYet();
         if (ended) revert TenderEndAlreadyCalled();
 
         ended = true;
@@ -115,11 +117,13 @@ contract BuildingTender {
     }
 
     /**
-     * Samo pobednik može da vidi kontakt investitora
+     * @dev Kriptografski zaštićen uvid u kontakt podatke investitora.
+     * Pristup podacima je omogućen isključivo pobedniku aukcije nakon njenog zvaničnog završetka.
      */
     function getInvestorContact() external view returns (string memory) {
-        require(ended, "Tender jos uvek traje.");
-        require(msg.sender == lowestBidder, "Niste pobednik tendera.");
+        if (!ended) revert TenderNotEndedYet();
+        if (msg.sender != lowestBidder) revert NotTheWinner();
+        
         return secretContact;
     }
 }
