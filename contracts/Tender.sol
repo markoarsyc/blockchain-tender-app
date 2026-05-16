@@ -37,6 +37,7 @@ contract BuildingTender {
     error BidTooHigh(uint currentLowest);
     error TenderNotEnded();
     error TenderEndAlreadyCalled();
+    error NotManager();
 
     /**
      * @param _biddingTime Koliko sekundi traje tender
@@ -106,14 +107,11 @@ contract BuildingTender {
      * Završetak tendera (može da pozove bilo ko nakon isteka vremena)
      */
     function tenderEnd() external {
-        if (block.timestamp < tenderEndTime) revert TenderNotEnded();
+        if (msg.sender != manager) revert NotManager(); // <-- Restrikcija: samo vlasnik
         if (ended) revert TenderEndAlreadyCalled();
 
         ended = true;
         emit TenderEnded(lowestBidder, lowestBid);
-        
-        // Ovde bi u realnom sistemu išla isplata, ali za tender 
-        // je bitno samo da se fiksira pobednik.
     }
 
     /**
