@@ -187,6 +187,15 @@ button:disabled {
   border-radius: 10px;
 }
 
+/* Osnovna kartična klasa */
+.card {
+  background-color: var(--bg-card);
+  border: 1px solid #e2e8f0;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
 .live-data {
   background-color: var(--bg-badge);
   border: 1px solid var(--border-badge);
@@ -224,4 +233,294 @@ button:disabled {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   6. LISTA TENDERA (TendersList komponenta)
+   ========================================================================== */
+.tenders-container {
+  background-color: var(--bg-card);
+  padding: 25px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 20px;
+}
+
+.tenders-container h3 {
+  margin: 0 0 20px 0;
+  font-size: 1.2rem;
+  color: #334155;
+}
+
+.tenders-section {
+  margin-bottom: 30px;
+}
+
+.tenders-section h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.1rem;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.tenders-section:nth-child(1) h3 {
+  color: #059669;
+}
+
+.tenders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.tender-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 18px;
+  transition: all 0.3s ease;
+  animation: slideIn 0.3s ease-out;
+}
+
+.tender-card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+/* Aktivni tender - zelena boja */
+.tender-card.tender-active {
+  border-left: 4px solid #059669;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.tender-card.tender-active:hover {
+  border-color: #059669;
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.15);
+}
+
+/* Završeni tender - siva boja, disabled */
+.tender-card.tender-completed {
+  border-left: 4px solid #94a3b8;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  opacity: 0.85;
+}
+
+.tender-card.tender-completed:hover {
+  border-color: #64748b;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: none;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.tender-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+  margin-bottom: 12px;
+}
+
+.tender-header h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1e293b;
+  flex: 1;
+}
+
+.time-remaining {
+  white-space: nowrap;
+  font-weight: 600;
+  color: #059669;
+  font-size: 0.95rem;
+  background-color: #d1fae5;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.time-expired {
+  white-space: nowrap;
+  font-weight: 600;
+  color: #dc2626;
+  font-size: 0.95rem;
+  background-color: #fee2e2;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.badge-completed {
+  white-space: nowrap;
+  font-weight: 600;
+  color: #64748b;
+  font-size: 0.85rem;
+  background-color: #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.tender-details {
+  padding: 12px 0;
+  margin-bottom: 12px;
+  border-top: 1px solid #cbd5e1;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.tender-details p {
+  margin: 8px 0;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.tender-details strong {
+  color: #1e293b;
+}
+
+.tender-details code {
+  background-color: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  color: #0f172a;
+}
+
+.btn-select-tender {
+  width: 100%;
+  padding: 10px;
+  background-color: var(--primary);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-select-tender:hover {
+  background-color: var(--primary-hover);
+  transform: scale(1.02);
+}
+
+.btn-select-tender:active {
+  transform: scale(0.98);
+}
+
+.btn-select-tender:disabled,
+.btn-select-tender.btn-disabled {
+  background-color: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* ==========================================================================
+   7. FORMA ZA ODABRANI TENDER (ActiveTenders - sekcija)
+   ========================================================================== */
+.selected-tender-form {
+  background-color: var(--bg-card);
+  border: 2px solid var(--primary);
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.selected-tender-form h3 {
+  margin: 0 0 20px 0;
+  color: var(--primary);
+}
+
+.tender-details-expanded {
+  background-color: #f8fafc;
+  padding: 15px;
+  border-left: 4px solid var(--primary);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.tender-details-expanded p {
+  margin: 10px 0;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.tender-details-expanded strong {
+  color: #1e293b;
+}
+
+.tender-details-expanded code {
+  background-color: #e2e8f0;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  color: #0f172a;
+}
+
+.form-group small {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 6px;
+  display: block;
+}
+
+.form-group small strong {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Dugme za otkazivanje */
+.btn-cancel {
+  background-color: #94a3b8;
+  color: #ffffff;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background-color: #64748b;
+}
+
+/* ==========================================================================
+   8. PORUKE I TEKST
+   ========================================================================== */
+.error-text {
+  color: #dc2626;
+  background-color: #fee2e2;
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid #dc2626;
+  margin: 15px 0;
+  font-weight: 500;
+}
+
+.info-text {
+  color: #059669;
+  background-color: #d1fae5;
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid #059669;
+  margin: 15px 0;
+  font-weight: 500;
 }

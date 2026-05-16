@@ -11,7 +11,7 @@ function CreateTender({ setContractAddress }) {
   const [biddingTime, setBiddingTime] = useState(0);
   const [jobDescription, setJobDescription] = useState("");
   const [vlasnikSecret, setVlasnikSecret] = useState("");
-  const [initialPrice, setInitialPrice] = useState("");
+  const [initialPrice, setInitialPrice] = useState(""); // u ETH
   const [isDeploying, setIsDeploying] = useState(false);
 
   const deployContract = async () => {
@@ -30,17 +30,27 @@ function CreateTender({ setContractAddress }) {
 
       console.log("Pokrećem kreiranje ugovora na Ganache-u...");
       
+      // Konvertuj ETH u WEI za blockchain
+      const initialPriceInWei = ethers.parseEther(initialPrice || "0");
+      
       const contract = await factory.deploy(
         Number(biddingTime),
         jobDescription,
         vlasnikSecret,
-        Number(initialPrice)
+        initialPriceInWei
       );
 
       await contract.waitForDeployment();
       const deployedAddress = await contract.getAddress();
       
       setContractAddress(deployedAddress);
+      
+      // Spremi adresu tendera u localStorage
+      const existingAddresses = JSON.parse(localStorage.getItem("tender_addresses") || "[]");
+      if (!existingAddresses.includes(deployedAddress)) {
+        existingAddresses.push(deployedAddress);
+        localStorage.setItem("tender_addresses", JSON.stringify(existingAddresses));
+      }
       
       alert(`Ugovor uspešno kreiran na adresi: ${deployedAddress}`);
       
@@ -86,9 +96,11 @@ function CreateTender({ setContractAddress }) {
           />
         </div>
         <div className="form-group">
-          <label>Početna maksimalna cena (WEI):</label>
+          <label>Početna maksimalna cena (ETH):</label>
           <input 
             type="number" 
+            step="0.01"
+            placeholder="npr. 1.5"
             value={initialPrice} 
             onChange={(e) => setInitialPrice(e.target.value)} 
           />
