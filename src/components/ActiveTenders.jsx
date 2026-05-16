@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import contractArtifact from "../contractArtifact.json";
 import TendersList from "./TendersList";
@@ -8,24 +8,54 @@ const ganacheUrl = "http://127.0.0.1:7545";
 
 function ActiveTenders({ contractAddress, setContractAddress }) {
   const [selectedTender, setSelectedTender] = useState(null);
-  const [bidderAccount, setBidderAccount] = useState("");
+  const [bidderPrivateKey, setBidderPrivateKey] = useState("");
+  const [derivedAddress, setDerivedAddress] = useState("");
   const [bidAmount, setBidAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [winnerResult, setWinnerResult] = useState(null);
+  const [isLoadingResult, setIsLoadingResult] = useState(false);
+
+  // Derive address from private key
+  useEffect(() => {
+    if (!bidderPrivateKey) {
+      setDerivedAddress("");
+      return;
+    }
+
+    try {
+      // Check if it's a valid hex string (64 or 66 characters with 0x prefix)
+      const isValidFormat =
+        (bidderPrivateKey.length === 64 || bidderPrivateKey.length === 66) &&
+        /^(0x)?[0-9a-fA-F]+$/.test(bidderPrivateKey);
+
+      if (isValidFormat) {
+        const wallet = new ethers.Wallet(bidderPrivateKey);
+        setDerivedAddress(wallet.address);
+      } else {
+        setDerivedAddress("");
+      }
+    } catch (err) {
+      console.error("Greška pri derivaciji adrese:", err);
+      setDerivedAddress("");
+    }
+  }, [bidderPrivateKey]);
 
   const handleSelectTender = (tender) => {
     setSelectedTender(tender);
     setBidAmount("");
+    setWinnerResult(null);
   };
 
   const submitBid = async () => {
     if (!selectedTender) return alert("Prvo odaberi tender!");
-    if (!bidderAccount) return alert("Unesite adresu vašeg (majstorskog) naloga!");
+    if (!bidderPrivateKey) return alert("Unesite privatni ključ vašeg naloga!");
+    if (!derivedAddress) return alert("Privatni ključ nije validan!");
     if (!bidAmount) return alert("Unesite cenu!");
 
     setIsSubmitting(true);
     try {
       const provider = new ethers.JsonRpcProvider(ganacheUrl);
-      const signer = await provider.getSigner(bidderAccount);
+      const signer = new ethers.Wallet(bidderPrivateKey, provider);
       const contract = new ethers.Contract(
         selectedTender.address,
         contractArtifact.abi,
@@ -36,7 +66,7 @@ function ActiveTenders({ contractAddress, setContractAddress }) {
       const bidAmountInWei = ethers.parseEther(bidAmount);
 
       console.log(
-        `Šaljem ponudu sa naloga: ${bidderAccount} za iznos: ${bidAmount} ETH`
+        `Šaljem ponudu sa naloga: ${signer.address} za iznos: ${bidAmount} ETH`
       );
       const tx = await contract.applyForJob(bidAmountInWei);
 
@@ -51,6 +81,44 @@ function ActiveTenders({ contractAddress, setContractAddress }) {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const revealWinnerResult = async () => {
+    if (!selectedTender) return alert("Tender nije odabran!");
+    if (!bidderPrivateKey) return alert("Unesite privatni ključ vašeg naloga!");
+    if (!derivedAddress) return alert("Privatni ključ nije validan!");
+
+    setIsLoadingResult(true);
+    try {
+      const provider = new ethers.JsonRpcProvider(ganacheUrl);
+      const signer = new ethers.Wallet(bidderPrivateKey, provider);
+      const contract = new ethers.Contract(
+        selectedTender.address,
+        contractArtifact.abi,
+        signer
+      );
+
+      // Try to call the investor contact function
+      const secretContact = await contract.getInvestorContact();
+      
+      setWinnerResult({
+        success: true,
+        message: `🎉 Čestitamo! Tajni kontakt investitora je: ${secretContact}`,
+      });
+    } catch (err) {
+      console.error("Greška pri otkrianju rezultata:", err);
+      
+      // User is not the winner - fetch their bid vs lowest bid
+      setWinnerResult({
+        success: false,
+        lowestBid: ethers.formatEther(selectedTender.lowestBid),
+        message: `Najniža ponuda je bila ${ethers.formatEther(
+          selectedTender.lowestBid
+        )} ETH. Nažalost, niste pobedili na ovom tenderu.`,
+      });
+    } finally {
+      setIsLoadingResult(false);
     }
   };
 
@@ -89,50 +157,128 @@ function ActiveTenders({ contractAddress, setContractAddress }) {
           </div>
 
           <div className="form-group" style={{ marginTop: "20px" }}>
-            <label>Tvoj nalog (Majstor):</label>
+            <label>Privatni ključ vašeg naloga:</label>
             <input
-              type="text"
-              placeholder="Nalepi DRUGU adresu iz Ganache-a"
-              value={bidderAccount}
-              onChange={(e) => setBidderAccount(e.target.value)}
+              type="password"
+              placeholder="Unesite privatni ključ (64 ili 66 karaktera sa 0x)"
+              value={bidderPrivateKey}
+              onChange={(e) => setBidderPrivateKey(e.target.value)}
             />
+            {derivedAddress && (
+              <div style={{ marginTop: "10px", padding: "10px", backgroundColor: "#e8f5e9", borderRadius: "4px" }}>
+                <p style={{ margin: "0" }}>
+                  <strong>📍 Vaša adresa:</strong>
+                  <br />
+                  <code style={{ fontSize: "0.85em", wordBreak: "break-all", color: "#2e7d32" }}>
+                    {derivedAddress}
+                  </code>
+                </p>
+              </div>
+            )}
           </div>
 
-          <div className="form-group">
-            <label>Tvoja ponuda (u ETH):</label>
-            <input
-              type="number"
-              step="0.01"
-              placeholder="npr. 0.5"
-              value={bidAmount}
-              onChange={(e) => setBidAmount(e.target.value)}
-            />
-            <small>
-              Trenutna ponuda:{" "}
-              <strong>{ethers.formatEther(selectedTender.lowestBid)} ETH</strong>
-              {" "}
-              - Tvoja ponuda mora biti niža!
-            </small>
-          </div>
+          {/* AKTIVNI TENDER - Sekcija za slanje ponude */}
+          {selectedTender.isActive && (
+            <>
+              <div className="form-group">
+                <label>Tvoja ponuda (u ETH):</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="npr. 0.5"
+                  value={bidAmount}
+                  onChange={(e) => setBidAmount(e.target.value)}
+                />
+                <small>
+                  Trenutna ponuda:{" "}
+                  <strong>{ethers.formatEther(selectedTender.lowestBid)} ETH</strong>
+                  {" "}
+                  - Tvoja ponuda mora biti niža!
+                </small>
+              </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: "10px",
-              marginTop: "15px",
-            }}
-          >
-            <button className="btn-submit" onClick={submitBid} disabled={isSubmitting}>
-              {isSubmitting ? "Slanje ponude..." : "🔨 Pošalji Ponudu"}
-            </button>
-            <button
-              className="btn-cancel"
-              onClick={() => setSelectedTender(null)}
-              disabled={isSubmitting}
-            >
-              ✕ Otkaži
-            </button>
-          </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginTop: "15px",
+                }}
+              >
+                <button
+                  className="btn-submit"
+                  onClick={submitBid}
+                  disabled={isSubmitting || !derivedAddress}
+                >
+                  {isSubmitting ? "Slanje ponude..." : "🔨 Pošalji Ponudu"}
+                </button>
+                <button
+                  className="btn-cancel"
+                  onClick={() => setSelectedTender(null)}
+                  disabled={isSubmitting}
+                >
+                  ✕ Otkaži
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ZAVRŠENI TENDER - Sekcija za otkriće rezultata */}
+          {!selectedTender.isActive && (
+            <>
+              <div
+                style={{
+                  marginTop: "20px",
+                  padding: "15px",
+                  backgroundColor: "#fff3cd",
+                  border: "1px solid #ffc107",
+                  borderRadius: "4px",
+                }}
+              >
+                <p style={{ margin: "0 0 10px 0" }}>
+                  <strong>ℹ️ Ovaj tender je završen.</strong> Kliknite na dugme ispod da vidite rezultate.
+                </p>
+              </div>
+
+              <div style={{ marginTop: "15px" }}>
+                <button
+                  className="btn-submit"
+                  onClick={revealWinnerResult}
+                  disabled={isLoadingResult || !derivedAddress}
+                  style={{ width: "100%" }}
+                >
+                  {isLoadingResult ? "Učitavanje rezultata..." : "🔑 Otkrij Kontakt Investitora"}
+                </button>
+              </div>
+
+              {/* Prikaži rezultate */}
+              {winnerResult && (
+                <div
+                  style={{
+                    marginTop: "20px",
+                    padding: "15px",
+                    backgroundColor: winnerResult.success ? "#d4edda" : "#f8d7da",
+                    border: `1px solid ${winnerResult.success ? "#28a745" : "#f5c6cb"}`,
+                    borderRadius: "4px",
+                  }}
+                >
+                  <p style={{ margin: "0" }}>
+                    <strong style={{ color: winnerResult.success ? "#155724" : "#721c24" }}>
+                      {winnerResult.message}
+                    </strong>
+                  </p>
+                </div>
+              )}
+
+              <div style={{ marginTop: "15px" }}>
+                <button
+                  className="btn-cancel"
+                  onClick={() => setSelectedTender(null)}
+                >
+                  ✕ Zatvori
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

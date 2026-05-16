@@ -209,11 +209,11 @@ function TendersList({ onSelectTender }) {
                   </p>
                 </div>
                 <button
-                  className="btn-select-tender btn-disabled"
-                  disabled
-                  title="Tender je završen, ne možeš više slati ponude"
+                  className="btn-select-tender"
+                  onClick={() => onSelectTender(tender)}
+                  title="Pogledaj rezultate tendera"
                 >
-                  🔨 Tender je završen
+                  🔑 Pogledaj Rezultat / Kontakt
                 </button>
               </div>
             ))}
